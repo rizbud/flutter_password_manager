@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:password_manager/helpers/string.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -177,13 +178,22 @@ class _AuthenticationState extends State<Authentication> {
               ? () async {
                   FocusScope.of(context).unfocus();
                   final prefs = await SharedPreferences.getInstance();
-                  await prefs.setBool('isFirstOpen', false);
-                  await secureStorage.write(
-                    key: 'pin',
-                    value: createPinControllers.map((c) => c.text).join(),
-                  );
+                  await Future.wait([
+                    prefs.setBool('isFirstOpen', false),
+                    secureStorage.write(
+                      key: 'pin',
+                      value: createPinControllers.map((c) => c.text).join(),
+                    ),
+                    secureStorage.write(
+                      key: 'db_field_salt',
+                      value: generateRandomString(16),
+                    ),
+                    secureStorage.write(
+                      key: 'db_password',
+                      value: generateRandomString(8),
+                    ),
+                  ]);
 
-                  // UI only: simulate PIN creation
                   _loadPin();
                 }
               : null,
