@@ -1,38 +1,39 @@
 import 'package:flutter/material.dart';
+import 'package:password_manager/screens/add_edit_credential.dart';
+import 'package:password_manager/screens/authentication.dart';
+import 'package:password_manager/screens/credential_details.dart';
+import 'package:password_manager/screens/get_started.dart';
 import 'package:password_manager/screens/home.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Password Manager',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.tealAccent),
       ),
-      home: const MyHomePage(title: 'Password Manager'),
+      home: const GetStarted(),
+      routes: {
+        '/get-started': (context) => const GetStarted(),
+        '/authenticate': (context) => const Authentication(),
+        '/home': (context) => const MyHomePage(title: 'Password Manager'),
+        '/add-edit-credential': (context) => const AddEditCredential(),
+        '/credential-details': (context) => const CredentialDetails(),
+      },
     );
   }
 }

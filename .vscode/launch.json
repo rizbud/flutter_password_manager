@@ -7,7 +7,21 @@
     {
       "name": "password_manager",
       "request": "launch",
-      "type": "dart"
+      "type": "dart",
+      "flutterMode": "debug"
+    },
+    {
+      "name": "password_manager (fast mode)",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "debug",
+      "args": ["--fast-start"]
+    },
+    {
+      "name": "password_manager (attach mode)",
+      "request": "attach",
+      "type": "dart",
+      "deviceId": "emulator-5554"
     },
     {
       "name": "password_manager (profile mode)",
