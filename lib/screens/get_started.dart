@@ -1,27 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-class GetStarted extends StatefulWidget {
+class GetStarted extends StatelessWidget {
   const GetStarted({super.key});
-
-  @override
-  State<GetStarted> createState() => _GetStartedState();
-}
-
-class _GetStartedState extends State<GetStarted> {
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _checkFirstOpen();
-  }
-
-  void _checkFirstOpen() async {
-    final prefs = await SharedPreferences.getInstance();
-    final isFirstOpen = prefs.getBool('isFirstOpen') ?? true;
-    if (!isFirstOpen && mounted) {
-      Navigator.pushReplacementNamed(context, '/authenticate');
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -138,12 +118,8 @@ class _GetStartedState extends State<GetStarted> {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                onPressed: () async {
-                  final prefs = await SharedPreferences.getInstance();
-                  await prefs.setBool('isFirstOpen', false);
-                  if (mounted) {
-                    Navigator.pushReplacementNamed(context, '/authenticate');
-                  }
+                onPressed: () {
+                  Navigator.pushReplacementNamed(context, '/authenticate');
                 },
                 child: const Text(
                   'Lanjutkan',

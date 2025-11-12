@@ -4,7 +4,7 @@ import 'package:password_manager/screens/authentication.dart';
 import 'package:password_manager/screens/credential_details.dart';
 import 'package:password_manager/screens/get_started.dart';
 import 'package:password_manager/screens/home.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:password_manager/screens/splash.dart';
 
 void main() {
   runApp(const MyApp());
@@ -26,7 +26,7 @@ class _MyAppState extends State<MyApp> {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.tealAccent),
       ),
-      home: const GetStarted(),
+      home: const Splash(),
       routes: {
         '/get-started': (context) => const GetStarted(),
         '/authenticate': (context) => const Authentication(),
