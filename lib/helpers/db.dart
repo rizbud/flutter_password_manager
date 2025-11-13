@@ -22,11 +22,20 @@ Future<Database> openDB(String password) async {
   return db;
 }
 
-Future<List<Map<String, dynamic>>> getAllCredentials(Database db) async {
+Future<List<Map<String, dynamic>>> getAllCredentials(
+  Database db, {
+  String? keyword,
+}) async {
   return await db.query(
     'credentials',
     columns: ['id', 'username', 'website', 'created_at', 'updated_at'],
     orderBy: 'website ASC',
+    where: keyword != null && keyword.isNotEmpty
+        ? 'website LIKE ? OR username LIKE ?'
+        : null,
+    whereArgs: keyword != null && keyword.isNotEmpty
+        ? ['%$keyword%', '%$keyword%']
+        : null,
   );
 }
 

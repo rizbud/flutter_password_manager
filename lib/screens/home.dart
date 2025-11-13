@@ -1,5 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:password_manager/helpers/db.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:password_manager/helpers/string.dart';
+import 'package:sqflite_sqlcipher/sqflite.dart';
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
@@ -10,71 +14,149 @@ class MyHomePage extends StatefulWidget {
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
+  List<Map<String, dynamic>> credentials = [];
+  Database? db;
+  final FlutterSecureStorage secureStorage = const FlutterSecureStorage();
+  bool isLoading = true;
+  final TextEditingController _searchController = TextEditingController();
+  Timer? _debounce;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _searchController.addListener(_onSearchChanged);
+    _initDb();
+  }
+
+  void _onSearchChanged() {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      _loadCredentials(keyword: _searchController.text);
+    });
+  }
+
+  Future<void> _initDb() async {
+    final dbPassword = await secureStorage.read(key: 'db_password');
+    if (dbPassword == null) {
+      setState(() {
+        isLoading = false;
+      });
+      return;
+    }
+    db = await openDB(dbPassword);
+    if (db == null) {
+      setState(() {
+        isLoading = false;
+      });
+      return;
+    }
+    await _loadCredentials();
+
+    setState(() {
+      isLoading = false;
+    });
+  }
+
+  Future<void> _loadCredentials({String? keyword}) async {
+    if (db == null) return;
+    final creds = await getAllCredentials(db!, keyword: keyword);
+    setState(() {
+      credentials = creds;
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _loadCredentials(keyword: _searchController.text);
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _debounce?.cancel();
+    _searchController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F9FB),
       body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black12,
-                      blurRadius: 8,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: TextField(
-                  decoration: InputDecoration(
-                    hintText: 'Cari website, aplikasi, atau username',
-                    prefixIcon: const Icon(Icons.search, color: Colors.black38),
-                    filled: true,
-                    fillColor: Colors.white,
-                    contentPadding: const EdgeInsets.symmetric(
-                      vertical: 0,
-                      horizontal: 16,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            Expanded(
-              child: ListView(
-                padding: EdgeInsets.zero,
+        child: isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : Column(
                 children: [
-                  _SectionHeader('A'),
-                  _CredentialCard(
-                    id: 1,
-                    icon: Icons.phone_iphone,
-                    iconBg: Colors.green.shade200,
-                    title: 'Amazon',
-                    subtitle: 'my_username',
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 16,
+                    ),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black12,
+                            blurRadius: 8,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: TextField(
+                        controller: _searchController,
+                        decoration: InputDecoration(
+                          hintText: 'Cari website, aplikasi, atau username',
+                          prefixIcon: const Icon(
+                            Icons.search,
+                            color: Colors.black38,
+                          ),
+                          filled: true,
+                          fillColor: Colors.white,
+                          contentPadding: const EdgeInsets.symmetric(
+                            vertical: 0,
+                            horizontal: 16,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
-                  _SectionHeader('G'),
-                  _CredentialCard(
-                    id: 2,
-                    icon: Icons.language,
-                    iconBg: Colors.blue.shade200,
-                    title: 'Google',
-                    subtitle: 'user@email.com',
+                  Expanded(
+                    child: credentials.isEmpty
+                        ? const Center(child: Text('Belum ada kredensial'))
+                        : ListView.builder(
+                            padding: EdgeInsets.zero,
+                            itemCount: credentials.length,
+                            itemBuilder: (context, index) {
+                              final cred = credentials[index];
+                              final website = cred['website'] ?? '';
+                              final username = cred['username'] ?? '';
+                              final id = cred['id'] as int;
+                              final icon = isValidUrl(website)
+                                  ? Icons.language
+                                  : Icons.phone_iphone;
+                              final iconBg = Colors.blue.shade200;
+                              return _CredentialCard(
+                                id: id,
+                                icon: icon,
+                                iconBg: iconBg,
+                                title: website,
+                                subtitle: username,
+                              );
+                            },
+                          ),
                   ),
                 ],
               ),
-            ),
-          ],
-        ),
       ),
       floatingActionButton: Padding(
         padding: const EdgeInsets.only(bottom: 8.0, right: 4.0),
@@ -88,26 +170,6 @@ class _MyHomePageState extends State<MyHomePage> {
             Navigator.pushNamed(context, '/add-edit-credential');
           },
           child: const Icon(Icons.add, color: Colors.white, size: 32),
-        ),
-      ),
-    );
-  }
-}
-
-class _SectionHeader extends StatelessWidget {
-  final String letter;
-  const _SectionHeader(this.letter);
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-      child: Text(
-        letter,
-        style: const TextStyle(
-          fontWeight: FontWeight.bold,
-          color: Colors.black54,
-          fontSize: 16,
         ),
       ),
     );
@@ -131,7 +193,7 @@ class _CredentialCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Material(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
