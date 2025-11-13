@@ -12,6 +12,14 @@ A cross-platform Flutter app for securely storing, managing, and backing up user
 - Responsive UI for phones and tablets
 - Offline support (no cloud sync)
 
+## Preview
+
+https://github.com/user-attachments/assets/b73ff62c-16af-432a-a9b8-c83d337d1b45
+
+## Download
+
+[Releases](https://github.com/rizbud/flutter_password_manager/releases)
+
 ## Technical Stack
 
 - **Platform:** Flutter (Dart)
