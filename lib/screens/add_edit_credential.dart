@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:password_manager/helpers/db.dart';
+import 'package:password_manager/helpers/string.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:sqflite_sqlcipher/sqflite.dart';
 
 class AddEditCredential extends StatefulWidget {
   const AddEditCredential({super.key});
@@ -14,10 +18,16 @@ class _AddEditCredentialState extends State<AddEditCredential> {
   final _notesController = TextEditingController();
   bool _obscurePassword = true;
 
+  int? credentialId;
+  bool isLoading = true;
+
   bool get _isFormValid =>
       _nameController.text.isNotEmpty &&
       _usernameController.text.isNotEmpty &&
       _passwordController.text.isNotEmpty;
+
+  final FlutterSecureStorage secureStorage = const FlutterSecureStorage();
+  Database? db;
 
   @override
   void initState() {
@@ -25,6 +35,73 @@ class _AddEditCredentialState extends State<AddEditCredential> {
     _nameController.addListener(_onFieldChanged);
     _usernameController.addListener(_onFieldChanged);
     _passwordController.addListener(_onFieldChanged);
+    // _initDb will be called in didChangeDependencies
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final id = ModalRoute.of(context)?.settings.arguments as int?;
+    credentialId = id;
+    _initDbAndLoadCredential();
+  }
+
+  Future<void> _initDbAndLoadCredential() async {
+    final dbPassword = await secureStorage.read(key: 'db_password');
+    if (dbPassword != null) {
+      db = await openDB(dbPassword);
+      if (credentialId != null) {
+        await _loadCredential(credentialId!);
+      }
+    }
+    setState(() {
+      isLoading = false;
+    });
+  }
+
+  Future<void> _loadCredential(int id) async {
+    final fieldSalt = await secureStorage.read(key: 'db_field_salt');
+    final cred = await getCredentialById(db!, id);
+    if (cred != null && fieldSalt != null) {
+      _nameController.text = cred['website'] ?? '';
+      _usernameController.text = cred['username'] ?? '';
+      _passwordController.text = decryptString(cred['password'], fieldSalt);
+      _notesController.text = decryptString(cred['notes'], fieldSalt);
+    }
+  }
+
+  Future<void> _saveCredential() async {
+    final website = _nameController.text.trim();
+    final username = _usernameController.text.trim();
+    final passwordRaw = _passwordController.text.trim();
+    final notesRaw = _notesController.text.trim();
+    final fieldSalt = await secureStorage.read(key: 'db_field_salt');
+    if (fieldSalt == null || db == null) return;
+
+    final encryptedPassword = encryptString(passwordRaw, fieldSalt);
+    final encryptedNotes = notesRaw.isNotEmpty
+        ? encryptString(notesRaw, fieldSalt)
+        : '';
+    if (credentialId != null) {
+      // Edit mode
+      await updateCredential(
+        db!,
+        credentialId!,
+        username,
+        encryptedPassword,
+        website,
+        encryptedNotes,
+      );
+    } else {
+      // Add mode
+      await insertCredential(
+        db!,
+        username,
+        encryptedPassword,
+        website,
+        encryptedNotes,
+      );
+    }
   }
 
   void _onFieldChanged() {
@@ -48,12 +125,18 @@ class _AddEditCredentialState extends State<AddEditCredential> {
 
   @override
   Widget build(BuildContext context) {
+    if (isLoading) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFF7F9FB),
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
     return Scaffold(
       backgroundColor: const Color(0xFFF7F9FB),
       appBar: AppBar(
-        title: const Text(
-          'Tambah Kredensial',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+        title: Text(
+          credentialId != null ? 'Edit Kredensial' : 'Tambah Kredensial',
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
         ),
         backgroundColor: Colors.white,
         foregroundColor: Colors.blueAccent,
@@ -146,12 +229,15 @@ class _AddEditCredentialState extends State<AddEditCredential> {
               ),
             ),
             onPressed: _isFormValid
-                ? () {
-                    // Save logic here
+                ? () async {
+                    await _saveCredential();
                     Navigator.pop(context);
                   }
                 : null,
-            child: const Text('Simpan', style: TextStyle(color: Colors.white)),
+            child: Text(
+              credentialId != null ? 'Simpan Perubahan' : 'Simpan',
+              style: const TextStyle(color: Colors.white),
+            ),
           ),
         ),
       ),
@@ -166,7 +252,15 @@ class _AddEditCredentialState extends State<AddEditCredential> {
       contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide.none,
+        borderSide: const BorderSide(color: Colors.black38, width: 1.2),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.black38, width: 1.2),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.black45, width: 2),
       ),
       hintStyle: const TextStyle(color: Colors.black54),
     );
