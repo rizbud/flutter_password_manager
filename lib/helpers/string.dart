@@ -10,6 +10,11 @@ String generateRandomString(int length) {
 }
 
 bool isValidUrl(String url) {
+  final domainRegex = RegExp(r'^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+  if (domainRegex.hasMatch(url)) {
+    return true;
+  }
+
   final uri = Uri.tryParse(url);
   return uri != null && (uri.isScheme('http') || uri.isScheme('https'));
 }
