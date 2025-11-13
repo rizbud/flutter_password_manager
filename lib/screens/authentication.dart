@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:password_manager/helpers/string.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:local_auth/local_auth.dart';
 
 class Authentication extends StatefulWidget {
   const Authentication({super.key});
@@ -11,8 +12,8 @@ class Authentication extends StatefulWidget {
 }
 
 class _AuthenticationState extends State<Authentication> {
-  bool hasPin = false; // Simulate whether a PIN is set
-  bool supportsBiometric = true; // Simulate biometric support
+  bool hasPin = false;
+  bool supportsBiometric = false;
   final List<TextEditingController> pinControllers = List.generate(
     4,
     (_) => TextEditingController(),
@@ -29,6 +30,7 @@ class _AuthenticationState extends State<Authentication> {
   String? storedPin;
 
   final FlutterSecureStorage secureStorage = const FlutterSecureStorage();
+  final LocalAuthentication localAuth = LocalAuthentication();
 
   bool get isCreatePinValid {
     final pin = createPinControllers.map((c) => c.text).join();
@@ -40,6 +42,7 @@ class _AuthenticationState extends State<Authentication> {
   void initState() {
     super.initState();
     _loadPin();
+    _checkBiometricSupport();
   }
 
   Future<void> _loadPin() async {
@@ -48,6 +51,48 @@ class _AuthenticationState extends State<Authentication> {
       hasPin = pin != null && pin.length == 4;
       storedPin = pin;
     });
+  }
+
+  Future<void> _checkBiometricSupport() async {
+    final bool canCheckBiometrics = await localAuth.canCheckBiometrics;
+    final bool isDeviceSupported = await localAuth.isDeviceSupported();
+    setState(() {
+      supportsBiometric = canCheckBiometrics && isDeviceSupported;
+    });
+
+    if (isDeviceSupported && hasPin) {
+      _authenticateWithBiometrics();
+    }
+  }
+
+  Future<void> _authenticateWithBiometrics() async {
+    try {
+      final bool didAuthenticate = await localAuth.authenticate(
+        localizedReason: 'Gunakan biometrik untuk membuka aplikasi',
+        biometricOnly: true,
+      );
+      if (didAuthenticate) {
+        Navigator.pushReplacementNamed(context, '/home');
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Autentikasi biometrik gagal!'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            e.toString().contains('userCanceled')
+                ? 'Autentikasi dibatalkan oleh pengguna.'
+                : 'Terjadi kesalahan: $e',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
@@ -186,11 +231,11 @@ class _AuthenticationState extends State<Authentication> {
                     ),
                     secureStorage.write(
                       key: 'db_field_salt',
-                      value: generateRandomString(16),
+                      value: generateRandomString(32),
                     ),
                     secureStorage.write(
                       key: 'db_password',
-                      value: generateRandomString(8),
+                      value: generateRandomString(10),
                     ),
                   ]);
 
@@ -256,8 +301,8 @@ class _AuthenticationState extends State<Authentication> {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  onPressed: () {
-                    // UI only: simulate biometric auth
+                  onPressed: () async {
+                    await _authenticateWithBiometrics();
                   },
                   icon: const Icon(Icons.fingerprint, color: Colors.blueAccent),
                   label: const Text('Gunakan Biometrik'),
