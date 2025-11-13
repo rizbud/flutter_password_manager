@@ -28,6 +28,9 @@ String encryptString(String input, String key) {
 
 String decryptString(String encryptedInput, String key) {
   final parts = encryptedInput.split(':');
+  if (parts.length != 2) {
+    return '';
+  }
   final iv = IV.fromBase64(parts[0]);
   final encrypter = Encrypter(AES(Key.fromUtf8(key)));
   final decrypted = encrypter.decrypt64(parts[1], iv: iv);

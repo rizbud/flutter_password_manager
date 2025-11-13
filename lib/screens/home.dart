@@ -67,6 +67,10 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
     });
   }
 
+  void _reloadCredentials() {
+    _loadCredentials(keyword: _searchController.text);
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
@@ -151,6 +155,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
                                 iconBg: iconBg,
                                 title: website,
                                 subtitle: username,
+                                callback: _reloadCredentials,
                               );
                             },
                           ),
@@ -167,7 +172,9 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
           ),
           elevation: 8,
           onPressed: () {
-            Navigator.pushNamed(context, '/add-edit-credential');
+            Navigator.pushNamed(context, '/add-edit-credential').then((_) {
+              _loadCredentials(keyword: _searchController.text);
+            });
           },
           child: const Icon(Icons.add, color: Colors.white, size: 32),
         ),
@@ -182,12 +189,14 @@ class _CredentialCard extends StatelessWidget {
   final Color iconBg;
   final String title;
   final String subtitle;
+  final VoidCallback callback;
   const _CredentialCard({
     required this.id,
     required this.icon,
     required this.iconBg,
     required this.title,
     required this.subtitle,
+    required this.callback,
   });
 
   @override
@@ -201,7 +210,13 @@ class _CredentialCard extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
           onTap: () {
-            Navigator.pushNamed(context, '/credential-details', arguments: id);
+            Navigator.pushNamed(
+              context,
+              '/credential-details',
+              arguments: id,
+            ).then((_) {
+              callback();
+            });
           },
           child: ListTile(
             leading: Container(
